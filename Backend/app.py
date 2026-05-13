@@ -94,6 +94,30 @@ def extract_frames(video_path, fps_skip=5):
     return frames
 
 
+def format_response(label, conf, class_id, source="model"):
+    if label == "No snake detected":
+        return {
+            "speciesName": "No snake detected",
+            "scientificName": "Unknown",
+            "confidence": 0.0,
+            "venomous": False,
+            "safetyNote": "No clear detection. Stay cautious.",
+            "source": source
+        }
+    parts = label.split(" - ")
+    scientific_name = parts[0] if len(parts) > 1 else label
+    species_name = parts[1] if len(parts) > 1 else label
+    venomous = (class_id == 4)
+    
+    return {
+        "speciesName": species_name,
+        "scientificName": scientific_name,
+        "confidence": round(float(conf) * 100, 2),
+        "venomous": venomous,
+        "safetyNote": "Seek immediate medical attention if bitten by a venomous snake." if venomous else "Keep distance from all snakes.",
+        "source": source
+    }
+
 # 🔥 Main API
 @app.post("/predict-image")
 async def predict_image(file: UploadFile = File(...)):
@@ -105,11 +129,7 @@ async def predict_image(file: UploadFile = File(...)):
     # 🔥 Direct classification (NO YOLO)
     label, conf, class_id = classify_image(image_np)
 
-    return {
-        "prediction": label,
-        "class_id": class_id,
-        "confidence": float(conf)
-    }
+    return format_response(label, conf, class_id)
 
 @app.post("/predict-video")
 async def predict_video(file: UploadFile = File(...)):
@@ -170,19 +190,18 @@ async def predict_video(file: UploadFile = File(...)):
 
         os.remove(video_path)
 
-        return {
-            "prediction": final_label,
-            "class_id": final_class_id,
-            "confidence": float(avg_conf),
-            "frames_processed": len(frames),
-            "detections": len(predictions)
-        }
+        res = format_response(final_label, avg_conf, final_class_id)
+        res["frames_processed"] = len(frames)
+        res["detections"] = len(predictions)
+        return res
 
     os.remove(video_path)
 
-    return {
-        "prediction": "No snake detected",
-        "confidence": 0.0,
-        "frames_processed": len(frames),
-        "detections": 0
-    }
+    res = format_response("No snake detected", 0.0, -1)
+    res["frames_processed"] = len(frames)
+    res["detections"] = 0
+    return res
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
