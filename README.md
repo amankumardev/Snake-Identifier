@@ -35,7 +35,7 @@ Snake-Classifier-Id/
 │── README.md
 ⚙️ Installation & Setup
 Clone the repository
-git clone https://github.com/your-username/Snake-Classifier-Id.git
+git clone https://github.com/amankumardev/Snake-Identifier
 Navigate to the project folder
 cd Snake-Classifier-Id
 Install dependencies
